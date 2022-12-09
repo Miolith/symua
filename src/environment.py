@@ -14,7 +14,7 @@ class Food:
     def __init__(self, serving, pos):
         self.serving = serving
         self.pos = pos
-
+        self.color = "#5ec75a"
 
 class Nest:
     def __init__(self, queen, members):
@@ -53,7 +53,7 @@ class AntsModel(mesa.Model):
                         return x + xi, y + yi
 
     def __init_foods(self):
-        for food in self.foods_nb:
+        for food in range(self.foods_nb):
             self.foods.append(Food(random.randint(1, self.food_max_serving),
                                    [random.randint(0, self.width), random.randint(0, self.height)]))
 

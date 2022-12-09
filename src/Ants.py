@@ -40,6 +40,12 @@ class Ants(mesa.Agent):
     def step(self):
         if not self.alive:
             return
+
+        self.lifetime -= 1
+        if self.lifetime <= 0:
+            self.alive = False
+            self.model.schedule.remove(self)
+
         mx = random.uniform(-5,5)
         my = random.uniform(-5,5)
         if 0 <= self.posi[0] + mx < self.model.width and 0 <= self.posi[1] + my < self.model.height:
@@ -55,6 +61,7 @@ class Queen(Ants):
         self.hasReproduced = False
         self.antsSpawnRate = 10
         self.tick = 0
+        self.baby_types = [Explorer, Explorer]
 
     def step(self):
         if not self.alive:
@@ -62,7 +69,8 @@ class Queen(Ants):
         self.tick += 1
         if self.hasReproduced:
             if self.tick >= self.antsSpawnRate:
-                baby = Ants(self.model.ids, self.model, list(self.posi), self.nest_id)
+                b_types = random.choice(self.baby_types)
+                baby = b_types(self.model.ids, self.model, list(self.posi), self.nest_id)
                 self.model.nest_list[self.nest_id].members.append(baby)
                 self.model.schedule.add(baby)
                 self.model.ids += 1
@@ -88,7 +96,7 @@ class Male(Ants):
 class Explorer(Ants):
     def __init__(self, unique_id, model, position, nest_id):
         super().__init__(unique_id, model, position, nest_id)
-        self.color = "yellow"
+        self.color = "#9a9c3a"
         self.carryFood = False
         self.target = None
         self.foodQte = 0
@@ -128,6 +136,7 @@ class Explorer(Ants):
                     self.target = [random.randint(0, self.model.width), random.randint(0, self.model.height)]
 
                 self.move_towards(self.target[0], self.target[1], 0, self.movespeed)
+
             else:
                 self.go_back_home()
                 self.model.map[int(self.posi[1])][int(self.posi[0])].strength += self.trace

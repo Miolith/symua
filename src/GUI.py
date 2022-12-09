@@ -10,6 +10,7 @@ class GUI:
         self.step_speed = 5
         self.step_counter = 0
         self.agent_circle_width = 4
+        self.food_circle_width = 10
 
         self.tk = Tk()
         
@@ -31,6 +32,14 @@ class GUI:
         self.speed_scale.set(self.step_speed)
         self.speed_scale.pack()
 
+    def show_foods(self):
+        for food in self.model.foods:
+            x = food.pos[0]
+            y = food.pos[1]
+            self.can.create_oval(x - self.food_circle_width,y - self.food_circle_width,x + self.food_circle_width,y + self.food_circle_width, fill=food.color, outline=food.color)
+
+
+
     def show_agents(self):
         for agent in self.model.schedule.agents:
             x = agent.posi[0]
@@ -48,10 +57,11 @@ class GUI:
 
         self.can.delete('all')
         self.show_agents()
+        self.show_foods()
         
         self.tk.after(self.REFRESH_RATE, self.update)
 
 
 if __name__ == "__main__":
-    model = AntsModel(30,800,600)
+    model = AntsModel(2,800,600)
     GUI(800,600,model)
