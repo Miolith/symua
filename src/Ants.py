@@ -5,6 +5,8 @@ import math
 ANT_LIFETIME = 50
 SOLDIER_ANT_ATTACK = 10
 
+DEFAULT_PHERO_TICK = 200
+
 REFILL_TRESHOLD = 30
 
 class Ants(mesa.Agent):
@@ -12,7 +14,7 @@ class Ants(mesa.Agent):
         super().__init__(unique_id, model)
         self.posi = position
         self.nest_id = nest_id
-        self.movespeed = 10
+        self.movespeed = 5
         self.color = "green"
         self.trace = 0
         self.alive = True
@@ -71,8 +73,10 @@ class Queen(Ants):
         self.color = "#B715FE"
         self.hasReproduced = False
         self.antsSpawnRate = 20
+        self.explorer_chance = 0.7
+        self.worker = 0.3
         self.tick = 200
-        self.baby_types = [Explorer]
+        self.baby_types = [Explorer, Worker]
         self.nest = None
         self.baby_burst = 10
     def can_make_baby(self):
@@ -82,6 +86,14 @@ class Queen(Ants):
             self.baby_burst -= 1
             return True
 
+    def select_type(self):
+        value = random.uniform(0,1)
+        if value < self.explorer_chance:
+            return Explorer
+        else:
+            return Worker
+
+
         return len(self.nest.members) <= self.nest.food_stock
     def step(self):
         if not self.alive:
@@ -89,7 +101,7 @@ class Queen(Ants):
         self.tick += 1
         if self.hasReproduced:
             if self.tick >= self.antsSpawnRate and self.can_make_baby():
-                b_types = random.choice(self.baby_types)
+                b_types = self.select_type()
                 baby = b_types(self.model.ids, self.model, list(self.posi), self.nest_id)
                 self.model.nest_list[self.nest_id].members.append(baby)
                 self.model.schedule.add(baby)
@@ -119,6 +131,7 @@ class Explorer(Ants):
         super().__init__(unique_id, model, position, nest_id)
         self.color = "#9a9c3a"
         self.carryFood = False
+        self.savedFoodPos = None
         self.target = None
         self.foodQte = 0
         self.movespeed = 5
@@ -126,7 +139,6 @@ class Explorer(Ants):
     def go_back_home(self):
         dist = self.distance_to_target(self.nest_location[0], self.nest_location[1])
         if dist > 2:
-
             self.move_towards(self.nest_location[0], self.nest_location[1], self.movespeed, dist)
         elif self.carryFood:
             if self.foodQte > 1 and self.lifetime <= REFILL_TRESHOLD:
@@ -149,6 +161,7 @@ class Explorer(Ants):
             dist_to_food = self.distance_to_target(*food.pos)
             if dist_to_food <= 15:
                 self.trace = 1
+                self.savedFoodPos = food.pos
                 if food.serving > 0:
                     self.color = "#ffb366"
                     self.carryFood = True
@@ -167,7 +180,11 @@ class Explorer(Ants):
         elif self.lifetime <= REFILL_TRESHOLD:
             self.go_back_home()
             if not self.trace:
-                self.model.map[int(self.posi[1])][int(self.posi[0])].strength += self.trace
+                phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
+                phero.strength += self.trace
+                phero.tick = DEFAULT_PHERO_TICK
+                phero.source_food_pos = self.savedFoodPos
+                self.model.active_phero.append(phero)
         else:
             # TO OPTIMIZE
             if not self.trace:
@@ -182,8 +199,11 @@ class Explorer(Ants):
 
             else:
                 self.go_back_home()
-                self.model.map[int(self.posi[1])][int(self.posi[0])].strength += self.trace
-
+                phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
+                phero.strength += self.trace
+                phero.tick = DEFAULT_PHERO_TICK
+                phero.source_food_pos = self.savedFoodPos
+                self.model.active_phero.append(phero)
 
 # TO OPTIMIZE
 class Soldier(Ants):
@@ -237,8 +257,47 @@ class Worker(Ants):
         super().__init__(unique_id, model, position, nest_id)
         self.color = "red"
         self.target = None
-        self.wandering_range = 5
-        
+        self.wandering_range = 50
+        self.carryFood = False
+        self.savedFoodPos = None
+        self.foodQte = 0
+        self.trace = 0
+        self.max_food_capacity = 7
+    
+    def track_food(self):
+        for food in self.model.foods:
+            dist_to_food = self.distance_to_target(*food.pos)
+            if dist_to_food <= 15:
+                self.trace = 1
+                self.savedFoodPos = food.pos
+                if food.serving > 0:
+                    self.color = "#ffb366"
+                    self.carryFood = True
+                    self.foodQte = min(food.serving, self.max_food_capacity)
+                    food.serving -= self.foodQte
+            elif dist_to_food <= 200:
+                self.target = food.pos
+    
+    def go_back_home(self):
+        dist = self.distance_to_target(self.nest_location[0], self.nest_location[1])
+        if dist > 2:
+            self.move_towards(self.nest_location[0], self.nest_location[1], self.movespeed, dist)
+        elif self.carryFood:
+            if self.foodQte > 1 and self.lifetime <= REFILL_TRESHOLD:
+                self.lifetime += self.food_effect
+                self.foodQte -= 1
+            self.model.nest_list[self.nest_id].food_stock += self.foodQte
+            self.foodQte = 0
+            self.carryFood = False
+            self.foundfood = False
+            self.trace = 0
+            self.color = "red"
+        else:
+            if self.lifetime <= REFILL_TRESHOLD and self.model.nest_list[self.nest_id].food_stock > 0:
+                self.model.nest_list[self.nest_id].food_stock -= 1
+                self.lifetime += self.food_effect
+            self.trace = 0
+
     def step(self):
         if not self.alive:
             return
@@ -247,17 +306,30 @@ class Worker(Ants):
             self.alive = False
             self.model.schedule.remove(self)
         elif self.lifetime <= REFILL_TRESHOLD:
-            self.refill_at_nest()
+            self.go_back_home()
+            if not self.trace:
+                phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
+                phero.strength += self.trace
+                phero.tick = DEFAULT_PHERO_TICK
+                phero.source_food_pos = self.savedFoodPos
+                self.model.active_phero.append(phero)
+        elif self.trace:
+            self.go_back_home()
+            phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
+            phero.strength += self.trace
+            phero.tick = DEFAULT_PHERO_TICK
+            phero.source_food_pos = self.savedFoodPos
+            self.model.active_phero.append(phero)
         else:
-            if self.model.map[int(self.posi[1])][int(self.posi[0])].strength > 0:
-                food_pos = self.model.find_food(self.posi[1],self.posi[0])
-                self.move_towards(food_pos[0], food_pos[1], 0, self.movespeed)
-            else:
-                if self.target is None or self.posi == self.target:
-                    nest_loc = self.model.nest_list[self.nest_id].location
-                    self.target = [nest_loc[0] + random.uniform(-self.wandering_range, self.wandering_range),
-                                   nest_loc[1] + random.uniform(-self.wandering_range, self.wandering_range)]
-
-                self.move_towards(self.target[0], self.target[1], 0, self.movespeed)
-    
+            if self.target is None or self.target == self.posi:
+                int_pos = (int(self.posi[0]),int(self.posi[1]))
+                food_pos = self.model.find_food(*int_pos)
+                if food_pos is not None:
+                    self.target = food_pos
+                else:
+                    self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
+                                    self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
+            
+            self.move_towards(self.target[0], self.target[1], self.movespeed)
+            self.track_food()
 
