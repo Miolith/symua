@@ -58,10 +58,12 @@ class AntsModel(mesa.Model):
                                    [random.randint(0, self.width), random.randint(0, self.height)]))
 
     def food_ticks(self):
+        self.foods = list(filter(lambda food:food.serving > 0, self.foods))
         food_total = len(self.foods)
         while food_total < self.foods_nb:
             self.foods.append(Food(random.randint(1, self.food_max_serving),
                                    [random.randint(0, self.width), random.randint(0, self.height)]))
+            food_total += 1
 
     def __create_nest(self, unique_id):
         nest_id = len(self.nest_list)

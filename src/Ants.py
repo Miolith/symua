@@ -112,6 +112,7 @@ class Explorer(Ants):
         self.target = None
         self.foodQte = 0
         self.movespeed = 5
+        self.max_food_capacity = 3
     def go_back_home(self):
         dist = self.distance_to_target(self.nest_location[0], self.nest_location[1])
         if dist > 2:
@@ -146,7 +147,9 @@ class Explorer(Ants):
                         if food.serving > 0:
                             self.color = "#ffb366"
                             self.carryFood = True
-                            self.foodQte = food.serving
+                            self.foodQte = max(food.serving, self.max_food_capacity)
+                            food.serving -= self.foodQte
+
                 dist = 0
                 if self.target is not None:
                     dist = self.distance_to_target(*self.target)
