@@ -327,9 +327,13 @@ class Worker(Ants):
                 if food_pos is not None:
                     self.target = food_pos
                 else:
+                    
                     self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
                                     self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
-            
+                    while not self.model.is_safe(*self.target):
+                        self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
+                                    self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
+
             self.move_towards(self.target[0], self.target[1], self.movespeed)
             self.track_food()
 

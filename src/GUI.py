@@ -38,8 +38,8 @@ class GUI:
 
             for queen in self.model.yield_queens():
                 queen.antsSpawnRate = self.Queen_baby_cd.get()
-                queen.explorer_chance = self.Explorer_prop.get()/100
-                queen.worker = self.Worker_prop.get()/100
+                queen.explorer_chance = float(self.Explorer_prop.get()/100)
+                queen.worker = float(self.Worker_prop.get()/100)
 
             self.play_button["text"] = "Pause"
             self.update()
@@ -57,7 +57,10 @@ class GUI:
         self.phero_trace_on = Checkbutton(self.user_frame, text="Afficher les phéromones", variable=self.phero_track, onvalue=1, command=self.calc_phero)
         self.phero_trace_on.pack(side=TOP)
 
-        self.loc_frames = [Frame(self.user_frame) for _ in range(5)]
+        self.first_line = Frame(self.user_frame)
+        self.first_line.pack(side=TOP)
+
+        self.loc_frames = [Frame(self.first_line) for _ in range(5)]
         for fr in self.loc_frames:
             fr.pack(side=LEFT)
         Label(self.loc_frames[0], text="Food number :").pack(side=TOP)

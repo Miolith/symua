@@ -49,6 +49,10 @@ class AntsModel(mesa.Model):
             self.ids = self.__create_nest(self.ids)
 
 
+    def is_safe(self, x, y):
+        return 0 <= x < self.width and 0 <= y < self.height
+
+
     def yield_queens(self):
         for nest in self.nest_list:
             yield nest.queen
