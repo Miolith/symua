@@ -63,5 +63,5 @@ class GUI:
 
 
 if __name__ == "__main__":
-    model = AntsModel(2,800,600)
+    model = AntsModel(1,800,600)
     GUI(800,600,model)
