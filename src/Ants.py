@@ -73,12 +73,22 @@ class Queen(Ants):
         self.antsSpawnRate = 20
         self.tick = 200
         self.baby_types = [Explorer]
+        self.nest = None
+        self.baby_burst = 10
+    def can_make_baby(self):
+        if self.nest is None:
+            self.nest = self.model.nest_list[self.nest_id]
+        if self.baby_burst > 0:
+            self.baby_burst -= 1
+            return True
+
+        return len(self.nest.members) <= self.nest.food_stock
     def step(self):
         if not self.alive:
             return
         self.tick += 1
         if self.hasReproduced:
-            if self.tick >= self.antsSpawnRate:
+            if self.tick >= self.antsSpawnRate and self.can_make_baby():
                 b_types = random.choice(self.baby_types)
                 baby = b_types(self.model.ids, self.model, list(self.posi), self.nest_id)
                 self.model.nest_list[self.nest_id].members.append(baby)
@@ -116,6 +126,7 @@ class Explorer(Ants):
     def go_back_home(self):
         dist = self.distance_to_target(self.nest_location[0], self.nest_location[1])
         if dist > 2:
+
             self.move_towards(self.nest_location[0], self.nest_location[1], self.movespeed, dist)
         elif self.carryFood:
             if self.foodQte > 1 and self.lifetime <= REFILL_TRESHOLD:
@@ -127,7 +138,24 @@ class Explorer(Ants):
             self.trace = 0
             self.color = "#9a9c3a"
         else:
+            if self.lifetime <= REFILL_TRESHOLD and self.model.nest_list[self.nest_id].food_stock > 0:
+                self.model.nest_list[self.nest_id].food_stock -= 1
+                self.lifetime += self.food_effect
             self.trace = 0
+            
+
+    def track_food(self):
+        for food in self.model.foods:
+            dist_to_food = self.distance_to_target(*food.pos)
+            if dist_to_food <= 15:
+                self.trace = 1
+                if food.serving > 0:
+                    self.color = "#ffb366"
+                    self.carryFood = True
+                    self.foodQte = min(food.serving, self.max_food_capacity)
+                    food.serving -= self.foodQte
+            elif dist_to_food <= 200:
+                self.target = food.pos
 
     def step(self):
         if not self.alive:
@@ -137,19 +165,13 @@ class Explorer(Ants):
             self.alive = False
             self.model.schedule.remove(self)
         elif self.lifetime <= REFILL_TRESHOLD:
-            self.refill_at_nest()
+            self.go_back_home()
+            if not self.trace:
+                self.model.map[int(self.posi[1])][int(self.posi[0])].strength += self.trace
         else:
             # TO OPTIMIZE
             if not self.trace:
-                for food in self.model.foods:
-                    if self.distance_to_target(*food.pos) <= 15:
-                        self.trace = 1
-                        if food.serving > 0:
-                            self.color = "#ffb366"
-                            self.carryFood = True
-                            self.foodQte = max(food.serving, self.max_food_capacity)
-                            food.serving -= self.foodQte
-
+                self.track_food()
                 dist = 0
                 if self.target is not None:
                     dist = self.distance_to_target(*self.target)

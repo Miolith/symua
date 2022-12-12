@@ -65,6 +65,10 @@ class AntsModel(mesa.Model):
                                    [random.randint(0, self.width), random.randint(0, self.height)]))
             food_total += 1
 
+    def nest_tick(self):
+        for nest in self.nest_list:
+            nest.members = list(filter(lambda ant:ant.alive == True, nest.members))
+
     def __create_nest(self, unique_id):
         nest_id = len(self.nest_list)
         rnd_pos = [random.randint(0, self.width), random.randint(0, self.height)]
@@ -78,6 +82,7 @@ class AntsModel(mesa.Model):
 
     def step(self):
         self.food_ticks()
+        self.nest_tick()
         self.schedule.step()
 
 
