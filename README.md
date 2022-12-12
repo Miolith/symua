@@ -3,58 +3,63 @@
 Sujet : Quelles sont les meilleurs stratégies de survie pour une fourmilière dans un environnement hostile ?
 
 # TODO
-- Représenter les agents : Reine, mâles, ouvrières, soldates, exploratrices, puéricultrices, agricultrices, exclavagistes, ennemie naturel
+- Représenter les agents : Reine, mâles, ouvrières, soldates, exploratrices,
+  puéricultrices, agricultrices, exclavagistes, ennemi naturel
 - Comportements des agents : Via phéromones, Coopération, Hostilité, prédateur
 - Créer un environnement : Nourriture, terrain, construction de nid
 
 # Reine
 
-- Se reproduis avec un mâle
-- Génère des oeufs
+- Elle se reproduit avec un mâle.
+- Elle pond des oeufs.
 
 # Mâle
 
-- Se reproduis avec la reine puis meurt
+- Il se reproduit avec la reine puis meurt.
 
-# Ouvrière
+# Ouvrières
 
-- Fais toute sorte de tâches
-- Echange de tâches entre ouvrière 
-- Randomly pond des oeufs qui peuvent uniquement devenir des mâles (ces oeufs sont souvent mangé)
+- Elles font toute sorte de tâches.
+- Elles échangent de tâches entre ouvrières.
+- Elles peuvent pondre des oeufs de mâles aléatoirement (ces oeufs sont souvent
+        mangés).
 
 ## Soldates
 
-- Creuse le nid et le réseau de galeries
-- Porte un venin, en présence d'intrus elles attaquent et ensuite injectent le venin dans la blessure.
-- Protège les exploratrices en expédition également
+- Elles creusent le nid et le réseau de galeries.
+- Elles portent un venin, en présence d'intrus elles attaquent et ensuite
+  injectent le venin dans la blessure.
+- Elles protègent les exploratrices en expédition.
 
 ## Exploratrices
 
-- les plus agées
-- partent à la recherche de nourriture
-- exposé le plus au danger
-- insensibilité à la perte de ses camarades
+- Ce sont les plus agées.
+- Elles partent à la recherche de nourriture.
+- Elles sont le plus exposées au danger.
+- Elles sont insensibles à la perte de leurs camarades.
 
 ## Puéricultrices
 
-- S'occupe des oeufs de la reine
+- Elles s'occupent des oeufs de la reine.
 
 ## Agricultrices
 
-- Cultive à l'aide de pucerons dont elles sucent le liquide.
-- Pucerons apportés par les exploratrices
-- Technique de travail sophistiquée pour faire pousser les récoltes.
-- Elles peuvent sécréter des substances chimiques ayant un effet antibactérien pour prévenir la présence de moisissures.
+- Elles cultivent à l'aide de pucerons dont elles sucent le liquide.
+- Les pucerons sont apportés par les exploratrices.
+- Elles utilisent une technique de travail sophistiquée pour faire pousser les
+  récoltes.
+- Elles peuvent sécréter des substances chimiques ayant un effet antibactérien
+  pour prévenir la présence de moisissures.
 
 ## Esclavagistes
 
-- Ils volent des pupes et des oeufs pour faire des esclaves (conversion)
+- Ils volent des pupes et des oeufs pour faire des esclaves (conversion).
 
 
 # Prédateur
 
-- Attaque les fourmis sans distinction.
-- Bien plus fort qu'une fourmis lambda
+- Il attaque les fourmis sans distinction.
+- Il est bien plus fort qu'une fourmis lambda.
 
 
 ## Requirements
