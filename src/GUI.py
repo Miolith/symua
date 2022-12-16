@@ -1,4 +1,5 @@
 from tkinter import *
+from tkinter import ttk
 from Stats import *
 from environment import *
 
@@ -14,6 +15,7 @@ class GUI:
         self.food_circle_width = 10
         
         self.phero_pos = []
+        self.strats = [0]
 
         self.tk = Tk()
         
@@ -27,6 +29,8 @@ class GUI:
 
         self.__setup_user_frame()
         self.stats_win = []
+
+        self.stats_win.append(StatisticWindow(self.tk, self.model.event_manager, 0))
 
 
         self.tk.mainloop()
@@ -49,12 +53,14 @@ class GUI:
             self.model.foods_nb = self.food_nb_scale.get()
             self.model.food_max_serving = self.food_scale.get()
 
-            for queen in self.model.yield_queens():
+            for k,queen in enumerate(self.model.yield_queens()):
                 queen.antsSpawnRate = self.Queen_baby_cd.get()
                 queen.explorer_chance = float(self.Explorer_prop.get()/100)
                 queen.worker = float(self.Worker_prop.get()/100)
                 queen.baby_burst = self.Queen_baby_rush_scale.get()
                 queen.food_greed = self.Queen_greed_scale.get()
+                queen.strat = self.strats[k]
+                queen.soldier_chance = float(self.soldier_scale.get()/100)
 
             self.play_button["text"] = "Pause"
             self.nest_scale["state"] = "disabled"
@@ -126,7 +132,7 @@ class GUI:
         self.second_line = Frame(self.user_frame)
         self.second_line.pack(side=TOP)
 
-        self.loc_frames_2 = [Frame(self.second_line) for _ in range(1)]
+        self.loc_frames_2 = [Frame(self.second_line) for _ in range(3)]
         for fr in self.loc_frames_2:
             fr.pack(side=LEFT)
 
@@ -135,6 +141,28 @@ class GUI:
         self.nest_scale = Scale(self.loc_frames_2[0], from_=1, to=5, length=100, command=self.set_new_model)
         self.nest_scale.set(1)
         self.nest_scale.pack(side=TOP)
+
+        Label(self.loc_frames_2[2], text="Soldier spawn chance(%) :").pack(side=TOP)
+
+        self.soldier_scale = Scale(self.loc_frames_2[2], from_=0, to=100, length=100)
+        self.soldier_scale.set(0)
+        self.soldier_scale.pack(side=TOP)
+
+        Label(self.loc_frames_2[1], text="Choose Nest Strat :").pack(side=TOP)
+
+        self.strat_combo = ttk.Combobox(self.loc_frames_2[1], values=["Pacifist", "Aggressor", "Defender", "Coop"], state="readonly",width=10)
+        self.strat_combo.current(0)
+        self.strat_combo.pack(side=TOP)
+
+        self.nest_combo = ttk.Combobox(self.loc_frames_2[1], values=["Nest_0"],state="readonly",width=10)
+        self.nest_combo.current(0)
+        self.nest_combo.pack(side=TOP)
+
+        self.nest_button = Button(self.loc_frames_2[1], text="Apply Strat to Nest", command=self.apply_strat)
+        self.nest_button.pack(side=TOP)
+
+    def apply_strat(self):
+        self.strats[self.nest_combo.current()] = self.strat_combo.current()
 
 
     def set_new_model(self, entry):
@@ -147,6 +175,8 @@ class GUI:
 
         for tracker in range(nest_nb):
             self.stats_win.append(StatisticWindow(self.tk, self.model.event_manager, tracker))
+        self.strats = [0 for _ in range(nest_nb)]
+        self.nest_combo["values"] = ["Nest_"+str(i) for i in range(nest_nb)]
 
 
 

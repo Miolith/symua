@@ -78,13 +78,15 @@ class Ants(mesa.Agent):
         
 
 class Queen(Ants):
-    def __init__(self, unique_id, model, position, nest_id):
+    def __init__(self, unique_id, model, position, nest_id, strat=0):
         super().__init__(unique_id, model, position, nest_id)
         self.color = "#B715FE"
         self.hasReproduced = False
         self.antsSpawnRate = 20
         self.explorer_chance = 0.7
         self.worker = 0.3
+        self.soldier_chance = 0
+        self.strat = strat
         self.tick = 200
         self.baby_types = [Explorer, Worker]
         self.nest = None
@@ -106,10 +108,10 @@ class Queen(Ants):
         if value < self.explorer_chance:
             return Explorer
         else:
+            if self.strat > 0:
+                if random.uniform(0,1) < self.soldier_chance:
+                    return Soldier
             return Worker
-
-
-        return len(self.nest.members) <= self.nest.food_stock
 
     def step(self):
         if not self.alive:
@@ -204,6 +206,7 @@ class Explorer(Ants):
                 phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
                 phero.strength += self.trace
                 phero.tick = DEFAULT_PHERO_TICK
+                phero.type = self.nest_id
                 phero.source_food_pos = self.savedFoodPos
                 self.model.active_phero.append(phero)
         else:
@@ -223,25 +226,22 @@ class Explorer(Ants):
                 phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
                 phero.strength += self.trace
                 phero.tick = DEFAULT_PHERO_TICK
+                phero.type = self.nest_id
                 phero.source_food_pos = self.savedFoodPos
                 self.model.active_phero.append(phero)
 
 # TO OPTIMIZE
 class Soldier(Ants):
-    def __init__(self, unique_id, model, position, nest_id, soldier_damage):
+    def __init__(self, unique_id, model, position, nest_id, soldier_damage=SOLDIER_ANT_ATTACK):
         super().__init__(unique_id, model, position, nest_id)
         self.color = "green"
         self.nest = self.model.nest_list[nest_id]
-        if self.nest.strat == 2:
-            self.step = self.agressor_step
-        else:
-            self.step = self.defensive_step
         self.target = None
         self.target_obj = None
         self.dmg = soldier_damage
         self.wandering_range = 200
 
-    def find_def_target(self):
+    def find_target(self):
         if len(self.nest.dangers) > 0:
             self.target_obj = random.choice(self.nest.dangers)
             self.target = self.target_obj.posi
@@ -255,9 +255,7 @@ class Soldier(Ants):
          while not self.model.is_safe(*self.target):
              self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
                             self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
-
-
-    def agressor_step(self):
+    def step(self):
         if not self.alive:
             return
 
@@ -268,38 +266,6 @@ class Soldier(Ants):
 
         if self.target_obj is None:
             self.find_target()
-        if self.target is None:
-            dist = 0
-            if self.target is not None:
-                dist = self.distance_to_target(*self.target)
-            if self.target is None:
-                self.valid_pos_around_nest()
-                dist = self.distance_to_target(*self.target)
-            self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
-        else:
-            dist = self.distance_to_target(*self.target)
-            if dist > 2:
-                self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
-            elif self.target_obj is not None: # Attack
-                self.target_obj.get_attacked(self.dmg, self)
-                if not self.target_obj.alive:
-                    self.target = None
-                    self.target_obj = None
-            else:
-                self.target = None
-
-
-    def defensive_step(self):
-        if not self.alive:
-            return
-
-        self.lifetime -= self.lifetime_rate
-        if self.lifetime < 0:
-            self.alive = False
-            self.model.schedule.remove(self)
-
-        if self.target_obj is None:
-            self.find_def_target()
         if self.target is None:
             dist = 0
             if self.target is not None:
@@ -422,6 +388,7 @@ class Worker(Ants):
             if phero.strength > 0:
                 phero.strength = 0
                 phero.tick = 0
+                phero.type = -1
             self.go_back_home()
         elif self.lifetime <= REFILL_TRESHOLD:
             self.go_back_home()
@@ -429,6 +396,7 @@ class Worker(Ants):
                 phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
                 phero.strength += self.trace
                 phero.tick = DEFAULT_PHERO_TICK
+                phero.type = self.nest_id
                 phero.source_food_pos = self.savedFoodPos
                 self.model.active_phero.append(phero)
         elif self.trace:
@@ -436,12 +404,13 @@ class Worker(Ants):
             phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
             phero.strength += self.trace
             phero.tick = DEFAULT_PHERO_TICK
+            phero.type = self.nest_id
             phero.source_food_pos = self.savedFoodPos
             self.model.active_phero.append(phero)
         else:
             if self.target is None or self.target == self.posi:
                 int_pos = (int(self.posi[0]),int(self.posi[1]))
-                food_pos = self.model.find_food(*int_pos)
+                food_pos = self.model.find_food(*int_pos, self.nest_id)
                 if food_pos is not None:
                     self.target = food_pos
                     self.foundfood = True
@@ -466,7 +435,7 @@ class Worker(Ants):
 
             if not self.foundfood:
                 int_pos = (int(self.posi[0]), int(self.posi[1]))
-                food_pos = self.model.find_food(*int_pos)
+                food_pos = self.model.find_food(*int_pos, self.nest_id)
                 if food_pos is not None:
                     self.target = food_pos
                     self.foundfood = True

@@ -62,12 +62,12 @@ class AntsModel(mesa.Model):
         for nest in self.nest_list:
             yield nest.queen
 
-    def find_food(self, x, y):
+    def find_food(self, x, y, local_nest_id=None):
         for yi in range(-2, 3):
             for xi in range(-2, 3):
                 if (not (yi == 0 and xi == 0)) and 0 <= x + xi < self.width and 0 <= y + yi < self.height:
                     obj = self.map[y + yi][x + xi]
-                    if obj.strength != 0: 
+                    if obj.strength != 0 and (local_nest_id is None or obj.type == local_nest_id):
                         return obj.source_food_pos
         return None
 
@@ -94,9 +94,19 @@ class AntsModel(mesa.Model):
     def nest_tick(self):
         for k,nest in enumerate(self.nest_list):
             nest.dangers = list(filter(lambda target:target.alive == True, nest.dangers))
+            if nest.strat == 2 and len(nest.dangers) < 3:
+                for i, nest2 in enumerate(self.nest_list):
+                    if i == k:
+                        continue
+                    nb = min(len(nest2.members), 5)
+                    for _ in range(nb):
+                        nest.dangers.append(random.choice(nest2.members))
+
+
         for k,nest in enumerate(self.nest_list):
             nest.members = list(filter(lambda ant:ant.alive == True, nest.members))
             self.event_manager.append_data("nest_population_"+str(k), len(nest.members))
+
     def __create_nest(self, unique_id):
         nest_id = len(self.nest_list)
         rnd_pos = [random.randint(0, self.width), random.randint(0, self.height)]
