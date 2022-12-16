@@ -1,4 +1,5 @@
 import random
+from Stats import *
 import mesa
 
 from Ants import *
@@ -19,12 +20,14 @@ class Food:
         self.color = "#5ec75a"
 
 class Nest:
-    def __init__(self, queen, members):
+    def __init__(self, queen, members, strat=0):
         self.queen = queen
         self.members = members
         self.location = self.queen.posi
         self.capacity = 10
+        self.strat = strat # 0 : Pacifist, 1 : Defender, 2 : Agressor
         self.food_stock = 0
+        self.dangers = []
 
 
 class AntsModel(mesa.Model):
@@ -32,7 +35,7 @@ class AntsModel(mesa.Model):
     Simulate the environment and its ants and nest inside it.
     """
 
-    def __init__(self, nest_nb, width, height, foods_nb=30, food_max_serving=15):
+    def __init__(self, nest_nb, width, height, foods_nb=30, food_max_serving=30):
         self.nest_nb = nest_nb
         self.width = width
         self.height = height
@@ -45,7 +48,9 @@ class AntsModel(mesa.Model):
         self.nest_list = []
         self.schedule = mesa.time.RandomActivation(self)
         self.ids = 0
+        self.event_manager = Observer()
         for i in range(self.nest_nb):
+            self.event_manager.create_event("nest_population_"+str(i))
             self.ids = self.__create_nest(self.ids)
 
 
@@ -87,9 +92,11 @@ class AntsModel(mesa.Model):
         self.active_phero = list(filter(lambda ph:ph.tick > 0, self.active_phero))
 
     def nest_tick(self):
-        for nest in self.nest_list:
+        for k,nest in enumerate(self.nest_list):
+            nest.dangers = list(filter(lambda target:target.alive == True, nest.dangers))
+        for k,nest in enumerate(self.nest_list):
             nest.members = list(filter(lambda ant:ant.alive == True, nest.members))
-
+            self.event_manager.append_data("nest_population_"+str(k), len(nest.members))
     def __create_nest(self, unique_id):
         nest_id = len(self.nest_list)
         rnd_pos = [random.randint(0, self.width), random.randint(0, self.height)]
@@ -99,6 +106,7 @@ class AntsModel(mesa.Model):
         self.schedule.add(agent)
         self.schedule.add(agent_male)
         self.nest_list.append(Nest(agent, [agent_male]))
+        self.event_manager.append_data("nest_population_"+str(nest_id), 1)
         return unique_id + 2
 
     def step(self):

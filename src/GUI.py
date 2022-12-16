@@ -1,5 +1,5 @@
 from tkinter import *
-
+from Stats import *
 from environment import *
 
 class GUI:
@@ -26,9 +26,22 @@ class GUI:
         self.user_frame.pack(side=BOTTOM)
 
         self.__setup_user_frame()
+        self.stats_win = []
 
 
         self.tk.mainloop()
+
+    def reset_sim(self):
+        self.phero_pos = []
+        for tracker in range(self.model.nest_nb):
+            self.stats_win[tracker].window.destroy()
+        self.stats_win = []
+        model = AntsModel(2, 800, 600)
+        self.model = model
+        for tracker in range(self.model.nest_nb):
+            self.stats_win.append(StatisticWindow(self.tk, self.model.event_manager, tracker))
+        self.step_counter = 0
+
 
     def sim_start_and_pause(self):
         self.started = not self.started
@@ -40,12 +53,17 @@ class GUI:
                 queen.antsSpawnRate = self.Queen_baby_cd.get()
                 queen.explorer_chance = float(self.Explorer_prop.get()/100)
                 queen.worker = float(self.Worker_prop.get()/100)
+                queen.baby_burst = self.Queen_baby_rush_scale.get()
+                queen.food_greed = self.Queen_greed_scale.get()
 
             self.play_button["text"] = "Pause"
+            self.nest_scale["state"] = "disabled"
             self.update()
             self.calc_phero()
         else:
             self.play_button["text"] = "Play"
+
+
     def __setup_user_frame(self):
 
         self.play_button = Button(self.user_frame, text = "Play", command = self.sim_start_and_pause)
@@ -60,7 +78,7 @@ class GUI:
         self.first_line = Frame(self.user_frame)
         self.first_line.pack(side=TOP)
 
-        self.loc_frames = [Frame(self.first_line) for _ in range(5)]
+        self.loc_frames = [Frame(self.first_line) for _ in range(7)]
         for fr in self.loc_frames:
             fr.pack(side=LEFT)
         Label(self.loc_frames[0], text="Food number :").pack(side=TOP)
@@ -69,10 +87,10 @@ class GUI:
         self.food_nb_scale.set(30)
         self.food_nb_scale.pack(side=TOP)
 
-        Label(self.loc_frames[1], text="Food size :").pack(side=TOP)
+        Label(self.loc_frames[1], text="Food Qte :").pack(side=TOP)
 
         self.food_scale = Scale(self.loc_frames[1], from_=0, to=100, length=100)
-        self.food_scale.set(15)
+        self.food_scale.set(30)
         self.food_scale.pack(side=TOP)
 
         Label(self.loc_frames[2], text="Queen ants rate(tick) :").pack(side=TOP)
@@ -80,6 +98,18 @@ class GUI:
         self.Queen_baby_cd = Scale(self.loc_frames[2], from_=0, to=100, length=100)
         self.Queen_baby_cd.set(20)
         self.Queen_baby_cd.pack(side=TOP)
+
+        Label(self.loc_frames[5], text="Queen Greediness :").pack(side=TOP)
+
+        self.Queen_greed_scale = Scale(self.loc_frames[5], from_=0, to=2, length=100, resolution=0.1)
+        self.Queen_greed_scale.set(1)
+        self.Queen_greed_scale.pack(side=TOP)
+
+        Label(self.loc_frames[6], text="Queen Baby Rush :").pack(side=TOP)
+
+        self.Queen_baby_rush_scale = Scale(self.loc_frames[6], from_=0, to=20, length=100)
+        self.Queen_baby_rush_scale.set(10)
+        self.Queen_baby_rush_scale.pack(side=TOP)
 
         Label(self.loc_frames[3], text="Explorer proportion((%) :").pack(side=TOP)
 
@@ -92,6 +122,33 @@ class GUI:
         self.Worker_prop = Scale(self.loc_frames[4], from_=0, to=100, length=100, command=self.balance_explorer)
         self.Worker_prop.set(30)
         self.Worker_prop.pack(side=TOP)
+
+        self.second_line = Frame(self.user_frame)
+        self.second_line.pack(side=TOP)
+
+        self.loc_frames_2 = [Frame(self.second_line) for _ in range(1)]
+        for fr in self.loc_frames_2:
+            fr.pack(side=LEFT)
+
+        Label(self.loc_frames_2[0], text="Nest Number :").pack(side=TOP)
+
+        self.nest_scale = Scale(self.loc_frames_2[0], from_=1, to=5, length=100, command=self.set_new_model)
+        self.nest_scale.set(1)
+        self.nest_scale.pack(side=TOP)
+
+
+    def set_new_model(self, entry):
+        for win in self.stats_win:
+            win.window.destroy()
+        self.stats_win = []
+        nest_nb = self.nest_scale.get()
+        model = AntsModel(nest_nb, 800, 600)
+        self.model = model
+
+        for tracker in range(nest_nb):
+            self.stats_win.append(StatisticWindow(self.tk, self.model.event_manager, tracker))
+
+
 
     def balance_workers(self, info):
         self.Worker_prop.set(100 - self.Explorer_prop.get())
@@ -149,5 +206,5 @@ class GUI:
 
 
 if __name__ == "__main__":
-    model = AntsModel(1,800,600)
+    model = AntsModel(2,800,600)
     GUI(800,600,model)

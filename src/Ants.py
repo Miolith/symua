@@ -50,6 +50,16 @@ class Ants(mesa.Agent):
             self.model.nest_list[self.nest_id].food_stock -= 1
             self.lifetime += self.food_effect
 
+    def get_attacked(self, amount_hp_lost, attacker):
+        self.lifetime -= amount_hp_lost
+        if self.lifetime <= 0:
+            self.alive = False
+            self.model.schedule.remove(self)
+        # Notify Nest that Unit is attacked
+        danger_list = self.model.nest_list[self.nest_id].dangers
+        if attacker not in danger_list:
+            danger_list.append(attacker)
+
     def step(self):
         if not self.alive:
             return
@@ -79,12 +89,17 @@ class Queen(Ants):
         self.baby_types = [Explorer, Worker]
         self.nest = None
         self.baby_burst = 10
+        self.food_greed = 1
+        #self.lifetime_rate /= 2
     def can_make_baby(self):
         if self.nest is None:
             self.nest = self.model.nest_list[self.nest_id]
         if self.baby_burst > 0:
             self.baby_burst -= 1
             return True
+        if len(self.nest.members)*self.food_greed < self.nest.food_stock:
+            return True
+        return False
 
     def select_type(self):
         value = random.uniform(0,1)
@@ -95,18 +110,25 @@ class Queen(Ants):
 
 
         return len(self.nest.members) <= self.nest.food_stock
+
     def step(self):
         if not self.alive:
             return
         self.tick += 1
+        #self.lifetime -= self.lifetime_rate
         if self.hasReproduced:
             if self.tick >= self.antsSpawnRate and self.can_make_baby():
                 b_types = self.select_type()
                 baby = b_types(self.model.ids, self.model, list(self.posi), self.nest_id)
-                self.model.nest_list[self.nest_id].members.append(baby)
+                self.nest.members.append(baby)
                 self.model.schedule.add(baby)
                 self.model.ids += 1
                 self.tick = 0
+                self.nest.food_stock -= 1
+        #if self.lifetime <= REFILL_TRESHOLD:
+        #    if self.model.nest_list[self.nest_id].food_stock > 0:
+        #        self.model.nest_list[self.nest_id].food_stock -= 1
+        #        self.lifetime += self.food_effect
 
 
 class Male(Ants):
@@ -154,7 +176,6 @@ class Explorer(Ants):
                 self.model.nest_list[self.nest_id].food_stock -= 1
                 self.lifetime += self.food_effect
             self.trace = 0
-            
 
     def track_food(self):
         for food in self.model.foods:
@@ -179,7 +200,7 @@ class Explorer(Ants):
             self.model.schedule.remove(self)
         elif self.lifetime <= REFILL_TRESHOLD:
             self.go_back_home()
-            if not self.trace:
+            if self.trace:
                 phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
                 phero.strength += self.trace
                 phero.tick = DEFAULT_PHERO_TICK
@@ -207,19 +228,99 @@ class Explorer(Ants):
 
 # TO OPTIMIZE
 class Soldier(Ants):
-    def __init__(self, unique_id, model, position, nest_id):
+    def __init__(self, unique_id, model, position, nest_id, soldier_damage):
         super().__init__(unique_id, model, position, nest_id)
         self.color = "green"
-        self.model.nest_list[self.nest_id].capacity += 10
+        self.nest = self.model.nest_list[nest_id]
+        if self.nest.strat == 2:
+            self.step = self.agressor_step
+        else:
+            self.step = self.defensive_step
+        self.target = None
+        self.target_obj = None
+        self.dmg = soldier_damage
+        self.wandering_range = 200
 
-    def step(self):
+    def find_def_target(self):
+        if len(self.nest.dangers) > 0:
+            self.target_obj = random.choice(self.nest.dangers)
+            self.target = self.target_obj.posi
+        else:
+            self.target = None
+            self.target_obj = None
+
+    def valid_pos_around_nest(self):
+         self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
+                            self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
+         while not self.model.is_safe(*self.target):
+             self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
+                            self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
+
+
+    def agressor_step(self):
         if not self.alive:
             return
-        self.chase_predator()
+
         self.lifetime -= self.lifetime_rate
         if self.lifetime < 0:
             self.alive = False
             self.model.schedule.remove(self)
+
+        if self.target_obj is None:
+            self.find_target()
+        if self.target is None:
+            dist = 0
+            if self.target is not None:
+                dist = self.distance_to_target(*self.target)
+            if self.target is None:
+                self.valid_pos_around_nest()
+                dist = self.distance_to_target(*self.target)
+            self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
+        else:
+            dist = self.distance_to_target(*self.target)
+            if dist > 2:
+                self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
+            elif self.target_obj is not None: # Attack
+                self.target_obj.get_attacked(self.dmg, self)
+                if not self.target_obj.alive:
+                    self.target = None
+                    self.target_obj = None
+            else:
+                self.target = None
+
+
+    def defensive_step(self):
+        if not self.alive:
+            return
+
+        self.lifetime -= self.lifetime_rate
+        if self.lifetime < 0:
+            self.alive = False
+            self.model.schedule.remove(self)
+
+        if self.target_obj is None:
+            self.find_def_target()
+        if self.target is None:
+            dist = 0
+            if self.target is not None:
+                dist = self.distance_to_target(*self.target)
+            if self.target is None:
+                self.valid_pos_around_nest()
+                dist = self.distance_to_target(*self.target)
+            self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
+        else:
+            dist = self.distance_to_target(*self.target)
+            if dist > 2:
+                self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
+            elif self.target_obj is not None: # Attack
+                self.target_obj.get_attacked(self.dmg, self)
+                if not self.target_obj.alive:
+                    self.target = None
+                    self.target_obj = None
+            else:
+                self.target = None
+
+
 
     def chase_predator(self):
         closest_predator = None
@@ -297,6 +398,17 @@ class Worker(Ants):
                 self.model.nest_list[self.nest_id].food_stock -= 1
                 self.lifetime += self.food_effect
             self.trace = 0
+            self.foundfood = False
+
+    def notify_food_supply_ended(self):
+        dist = self.distance_to_target(self.nest_location[0], self.nest_location[1])
+        if dist > 2:
+            self.move_towards(self.nest_location[0], self.nest_location[1], self.movespeed, dist)
+        else:
+            if self.lifetime <= REFILL_TRESHOLD and self.model.nest_list[self.nest_id].food_stock > 0:
+                self.model.nest_list[self.nest_id].food_stock -= 1
+                self.lifetime += self.food_effect
+            self.trace = 0
 
     def step(self):
         if not self.alive:
@@ -305,6 +417,12 @@ class Worker(Ants):
         if self.lifetime <= 0:
             self.alive = False
             self.model.schedule.remove(self)
+        elif self.trace == -1:
+            phero = self.model.map[int(self.posi[1])][int(self.posi[0])]
+            if phero.strength > 0:
+                phero.strength = 0
+                phero.tick = 0
+            self.go_back_home()
         elif self.lifetime <= REFILL_TRESHOLD:
             self.go_back_home()
             if not self.trace:
@@ -326,14 +444,31 @@ class Worker(Ants):
                 food_pos = self.model.find_food(*int_pos)
                 if food_pos is not None:
                     self.target = food_pos
+                    self.foundfood = True
                 else:
-                    
+                    self.foundfood = False
                     self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
                                     self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
                     while not self.model.is_safe(*self.target):
                         self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
                                     self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
 
-            self.move_towards(self.target[0], self.target[1], self.movespeed)
-            self.track_food()
+            dist = self.distance_to_target(self.target[0], self.target[1])
+            if dist > 2:
+                self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
+                self.track_food()
+            elif self.foundfood:
+                self.track_food()
+                if not self.trace:
+                    self.trace = -1
+            else:
+                self.target = None
+
+            if not self.foundfood:
+                int_pos = (int(self.posi[0]), int(self.posi[1]))
+                food_pos = self.model.find_food(*int_pos)
+                if food_pos is not None:
+                    self.target = food_pos
+                    self.foundfood = True
+
 
