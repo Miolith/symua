@@ -34,19 +34,36 @@ class StatisticWindow:
         self.event_manager = observer
         self.watching_id = watching_id
 
-
         self.fig = plt.Figure()
+        event_name = list(self.event_manager.event_list.keys())[watching_id*2]
+        self.text = Label(self.window, text=f"Tracking of {event_name}")
+        self.text.pack(side=TOP)
+
+        self.soldier_button = Button(self.window, text="Soldier Only", command=self.soldier_cmd)
+        self.soldier_button.pack(side=TOP)
+
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
         self.canvas.get_tk_widget().pack()
 
         self.anims = []
         self.tracks = []
         self.axs = []
-        self.track_event(list(self.event_manager.event_list.keys())[watching_id])
-        
+        self.show_soldier = False
+        self.track_event(event_name)
+
+    def soldier_cmd(self):
+        self.show_soldier = not self.show_soldier
+        if self.show_soldier:
+            self.soldier_button["text"] = "All Units"
+        else:
+            self.soldier_button["text"] = "Soldier Only"
 
     def animate(self, idx):
-        name = "nest_population_"+str(self.watching_id)
+        if self.show_soldier:
+            name = "soldier_population_"
+        else:
+            name = "nest_population_"
+        name += str(self.watching_id)
         ev = self.event_manager.event_list[name]
         elem = self.tracks[idx]
         size = len(ev)
@@ -66,8 +83,7 @@ class StatisticWindow:
 
 
     def track_event(self, event_name):
-        self.text = Label(self.window, text=f"Tracking of {event_name}")
-        self.text.pack(side=TOP)
+
         event = self.event_manager.event_list[event_name]
         ax = self.fig.add_subplot()
         x = np.arange(0, len(event), 1)

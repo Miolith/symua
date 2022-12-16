@@ -52,14 +52,19 @@ class Ants(mesa.Agent):
 
     def get_attacked(self, amount_hp_lost, attacker):
         self.lifetime -= amount_hp_lost
-        if self.lifetime <= 0:
-            self.alive = False
-            self.model.schedule.remove(self)
-        # Notify Nest that Unit is attacked
-        danger_list = self.model.nest_list[self.nest_id].dangers
-        if attacker not in danger_list:
-            danger_list.append(attacker)
 
+        # Notify Nest that Unit is attacked
+        personal_nest = self.model.nest_list[self.nest_id]
+        if personal_nest.strat != 3:
+            danger_list = personal_nest.dangers
+            if attacker not in danger_list:
+                danger_list.append(attacker)
+        else:
+            for lnest in self.model.nest_list:
+                if lnest.strat == 3:
+                    danger_list = lnest.dangers
+                    if attacker not in danger_list:
+                        danger_list.append(attacker)
     def step(self):
         if not self.alive:
             return
@@ -68,6 +73,7 @@ class Ants(mesa.Agent):
         if self.lifetime <= 0:
             self.alive = False
             self.model.schedule.remove(self)
+            return
 
         mx = random.uniform(-5,5)
         my = random.uniform(-5,5)
@@ -110,6 +116,7 @@ class Queen(Ants):
         else:
             if self.strat > 0:
                 if random.uniform(0,1) < self.soldier_chance:
+                    self.model.nest_list[self.nest_id].alive_soldier += 1
                     return Soldier
             return Worker
 
@@ -240,6 +247,20 @@ class Soldier(Ants):
         self.target_obj = None
         self.dmg = soldier_damage
         self.wandering_range = 200
+        self.speed_rush_value = 5
+        self.speed_rush_cd = 100
+        self.speed_rush_duration = 10
+        self.effect_on = False
+        self.cd = 100
+
+    def go_back_home(self):
+        dist = self.distance_to_target(self.nest_location[0], self.nest_location[1])
+        if dist > 2:
+            self.move_towards(self.nest_location[0], self.nest_location[1], self.movespeed, dist)
+        else:
+            if self.lifetime <= REFILL_TRESHOLD and self.model.nest_list[self.nest_id].food_stock > 0:
+                self.model.nest_list[self.nest_id].food_stock -= 1
+                self.lifetime += self.food_effect
 
     def find_target(self):
         if len(self.nest.dangers) > 0:
@@ -255,36 +276,54 @@ class Soldier(Ants):
          while not self.model.is_safe(*self.target):
              self.target = [self.nest_location[0] + random.uniform(-self.wandering_range, self.wandering_range),
                             self.nest_location[1] + random.uniform(-self.wandering_range, self.wandering_range)]
+
+    def speed_rush(self):
+        if self.cd >= self.speed_rush_cd:
+            self.cd = 0
+            self.movespeed += self.speed_rush_value
+            self.effect_on = True
+
     def step(self):
         if not self.alive:
             return
+
+        self.cd += 1
+        if self.effect_on and self.cd >= self.speed_rush_duration:
+            self.effect_on = False
+            self.movespeed -= self.speed_rush_value
 
         self.lifetime -= self.lifetime_rate
         if self.lifetime < 0:
             self.alive = False
             self.model.schedule.remove(self)
-
-        if self.target_obj is None:
-            self.find_target()
-        if self.target is None:
-            dist = 0
-            if self.target is not None:
-                dist = self.distance_to_target(*self.target)
-            if self.target is None:
-                self.valid_pos_around_nest()
-                dist = self.distance_to_target(*self.target)
-            self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
+            self.model.nest_list[self.nest_id].alive_soldier -= 1
+            return
+        elif self.lifetime <= REFILL_TRESHOLD:
+            self.go_back_home()
         else:
-            dist = self.distance_to_target(*self.target)
-            if dist > 2:
+            if self.target_obj is None:
+                self.find_target()
+
+            if self.target is None:
+                dist = 0
+                if self.target is not None:
+                    dist = self.distance_to_target(*self.target)
+                if self.target is None:
+                    self.valid_pos_around_nest()
+                    dist = self.distance_to_target(*self.target)
                 self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
-            elif self.target_obj is not None: # Attack
-                self.target_obj.get_attacked(self.dmg, self)
-                if not self.target_obj.alive:
-                    self.target = None
-                    self.target_obj = None
             else:
-                self.target = None
+                dist = self.distance_to_target(*self.target)
+                if dist > 2:
+                    self.speed_rush()
+                    self.move_towards(self.target[0], self.target[1], self.movespeed, dist)
+                elif self.target_obj is not None: # Attack
+                    self.target_obj.get_attacked(self.dmg, self)
+                    if not self.target_obj.alive:
+                        self.target = None
+                        self.target_obj = None
+                else:
+                    self.target = None
 
 
 

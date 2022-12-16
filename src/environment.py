@@ -23,9 +23,10 @@ class Nest:
     def __init__(self, queen, members, strat=0):
         self.queen = queen
         self.members = members
+        self.alive_soldier = 0
         self.location = self.queen.posi
         self.capacity = 10
-        self.strat = strat # 0 : Pacifist, 1 : Defender, 2 : Agressor
+        self.strat = strat # 0 : Pacifist, 1 : Defender, 2 : Agressor 3 : Coop
         self.food_stock = 0
         self.dangers = []
 
@@ -51,6 +52,7 @@ class AntsModel(mesa.Model):
         self.event_manager = Observer()
         for i in range(self.nest_nb):
             self.event_manager.create_event("nest_population_"+str(i))
+            self.event_manager.create_event("soldier_population_" + str(i))
             self.ids = self.__create_nest(self.ids)
 
 
@@ -106,6 +108,7 @@ class AntsModel(mesa.Model):
         for k,nest in enumerate(self.nest_list):
             nest.members = list(filter(lambda ant:ant.alive == True, nest.members))
             self.event_manager.append_data("nest_population_"+str(k), len(nest.members))
+            self.event_manager.append_data("soldier_population_" + str(k), nest.alive_soldier)
 
     def __create_nest(self, unique_id):
         nest_id = len(self.nest_list)
@@ -117,6 +120,7 @@ class AntsModel(mesa.Model):
         self.schedule.add(agent_male)
         self.nest_list.append(Nest(agent, [agent_male]))
         self.event_manager.append_data("nest_population_"+str(nest_id), 1)
+        self.event_manager.append_data("soldier_population_" + str(nest_id), 0)
         return unique_id + 2
 
     def step(self):

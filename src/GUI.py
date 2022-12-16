@@ -60,6 +60,7 @@ class GUI:
                 queen.baby_burst = self.Queen_baby_rush_scale.get()
                 queen.food_greed = self.Queen_greed_scale.get()
                 queen.strat = self.strats[k]
+                self.model.nest_list[k].strat = self.strats[k]
                 queen.soldier_chance = float(self.soldier_scale.get()/100)
 
             self.play_button["text"] = "Pause"
@@ -150,7 +151,7 @@ class GUI:
 
         Label(self.loc_frames_2[1], text="Choose Nest Strat :").pack(side=TOP)
 
-        self.strat_combo = ttk.Combobox(self.loc_frames_2[1], values=["Pacifist", "Aggressor", "Defender", "Coop"], state="readonly",width=10)
+        self.strat_combo = ttk.Combobox(self.loc_frames_2[1], values=["Pacifist", "Defender","Aggressor","Coop"], state="readonly",width=10)
         self.strat_combo.current(0)
         self.strat_combo.pack(side=TOP)
 
@@ -236,5 +237,5 @@ class GUI:
 
 
 if __name__ == "__main__":
-    model = AntsModel(2,800,600)
+    model = AntsModel(1,800,600)
     GUI(800,600,model)
