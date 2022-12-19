@@ -96,7 +96,7 @@ class AntsModel(mesa.Model):
     def nest_tick(self):
         for k,nest in enumerate(self.nest_list):
             nest.dangers = list(filter(lambda target:target.alive == True, nest.dangers))
-            if nest.strat == 2 and len(nest.dangers) < 3:
+            if nest.strat == 2 and len(nest.dangers) < 4:
                 for i, nest2 in enumerate(self.nest_list):
                     if i == k:
                         continue

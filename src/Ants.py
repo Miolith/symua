@@ -3,7 +3,7 @@ import random
 import math
 
 ANT_LIFETIME = 50
-SOLDIER_ANT_ATTACK = 10
+SOLDIER_ANT_ATTACK = 20
 
 DEFAULT_PHERO_TICK = 200
 
@@ -104,6 +104,7 @@ class Queen(Ants):
             self.nest = self.model.nest_list[self.nest_id]
         if self.baby_burst > 0:
             self.baby_burst -= 1
+            self.nest.food_stock += 2
             return True
         if len(self.nest.members)*self.food_greed < self.nest.food_stock:
             return True
@@ -248,10 +249,10 @@ class Soldier(Ants):
         self.dmg = soldier_damage
         self.wandering_range = 200
         self.speed_rush_value = 5
-        self.speed_rush_cd = 100
+        self.speed_rush_cd = 30
         self.speed_rush_duration = 10
         self.effect_on = False
-        self.cd = 100
+        self.cd = random.randint(0,self.speed_rush_cd+1)
 
     def go_back_home(self):
         dist = self.distance_to_target(self.nest_location[0], self.nest_location[1])
@@ -300,6 +301,8 @@ class Soldier(Ants):
             return
         elif self.lifetime <= REFILL_TRESHOLD:
             self.go_back_home()
+            self.target = None
+            self.target_obj = None
         else:
             if self.target_obj is None:
                 self.find_target()
@@ -322,40 +325,9 @@ class Soldier(Ants):
                     if not self.target_obj.alive:
                         self.target = None
                         self.target_obj = None
+                        self.lifetime += self.food_effect
                 else:
                     self.target = None
-
-
-
-    def chase_predator(self):
-        closest_predator = None
-        closest_dist = 1000
-        for predator in self.model.schedule.predators:
-            if predator.alive:
-                dist = self.distance_to_target(predator.posi[0], predator.posi[1])
-                if dist < closest_dist:
-                    closest_dist = dist
-                    closest_predator = predator
-        if closest_dist < 5:
-            self.move_towards(closest_predator.posi[0], closest_predator.posi[1], 0, self.movespeed)
-            closest_predator.lifetime -= SOLDIER_ANT_ATTACK
-            if closest_predator.lifetime < 0:
-                 closest_predator.alive = False
-        else:
-            self.chase_the_closest_explorer()
-
-    def chase_the_closest_explorer(self):
-        closest_explorer = None
-        closest_dist = 1000
-        for ant in self.model.nest_list[self.nest_id].members:
-            if isinstance(ant, Explorer):
-                if ant.alive:
-                    dist = self.distance_to_target(ant.posi[0], ant.posi[1])
-                    if dist < closest_dist:
-                        closest_dist = dist
-                        closest_explorer = ant
-        if closest_dist < 5:
-            self.move_towards(closest_explorer.posi[0], closest_explorer.posi[1], 0, self.movespeed)
 
 
 class Worker(Ants):
@@ -428,6 +400,7 @@ class Worker(Ants):
                 phero.strength = 0
                 phero.tick = 0
                 phero.type = -1
+
             self.go_back_home()
         elif self.lifetime <= REFILL_TRESHOLD:
             self.go_back_home()
